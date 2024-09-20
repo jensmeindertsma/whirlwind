@@ -1,6 +1,6 @@
 # whirlwind
 
-My solutions implemented in Rust to the Gossip Glomers distributed systems challenges by Fly.io.
+My solutions, implemented in Rust, to the Gossip Glomers distributed systems challenges by Fly.io.
 
 ## Setting up Maelstrom
 
