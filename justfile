@@ -15,3 +15,6 @@ test-unique-ids: build
 
 test-single-node-broadcast: build
     ./maelstrom/maelstrom test -w broadcast --bin ./target/release/broadcast --node-count 1 --time-limit 20 --rate 10
+
+test-multi-node-broadcast: build
+    ./maelstrom/maelstrom test -w broadcast --bin ./target/release/broadcast --node-count 5 --time-limit 20 --rate 10

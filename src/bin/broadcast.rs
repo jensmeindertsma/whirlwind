@@ -17,11 +17,11 @@ fn main() {
 
     info!(state = ?node.state, "initialized node");
 
-    let mut _saved_topology: HashMap<String, Vec<String>>;
+    let mut current_topology: Option<HashMap<String, Vec<String>>> = None;
     let mut messages_seen = Vec::new();
 
     while let Some(next) = node.read() {
-        let message: Message<IncomingPayload> = match next {
+        let message: Message<Payload> = match next {
             Ok(m) => m,
             Err(e) => {
                 error!("failed to read message: {e:?}");
@@ -30,25 +30,56 @@ fn main() {
         };
 
         let outgoing_payload = match message.body.payload {
-            IncomingPayload::Broadcast { message } => {
+            Payload::Broadcast { message } => {
                 info!(value = message, "received broadcast message");
-                messages_seen.push(message);
-                OutgoingPayload::BroadcastOk
+                if !messages_seen.contains(&message) {
+                    messages_seen.push(message);
+
+                    // We will broadcast to our neighbors
+                    match &current_topology {
+                        None => {
+                            error!("received broadcast message that i haven't seen before but I have no topology!");
+                            continue;
+                        }
+                        Some(topology) => {
+                            let neighbors = topology
+                                .get(&node.state.id)
+                                .expect("we should be part of the topology");
+
+                            for neighbor in neighbors {
+                                node.send(Message {
+                                    source: node.state.id.clone(),
+                                    destination: neighbor.clone(),
+                                    body: Body {
+                                        id: Some(counter.next()),
+                                        in_reply_to: None,
+                                        payload: Payload::Broadcast { message },
+                                    },
+                                })
+                                .unwrap();
+                            }
+                        }
+                    }
+                }
+
+                Payload::BroadcastOk
             }
-            IncomingPayload::Read => {
+
+            Payload::Read => {
                 info!(
                     ?messages_seen,
                     "received read_ok request, yielding messages seen"
                 );
-                OutgoingPayload::ReadOk {
+                Payload::ReadOk {
                     messages: messages_seen.clone(),
                 }
             }
-            IncomingPayload::Topology { topology } => {
+            Payload::Topology { topology } => {
                 info!(?topology, "received topology");
-                _saved_topology = topology;
-                OutgoingPayload::TopologyOk
+                current_topology = Some(topology);
+                Payload::TopologyOk
             }
+            _ => continue,
         };
 
         let reply_id = counter.next();
@@ -65,24 +96,20 @@ fn main() {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(tag = "type")]
 #[serde(rename_all = "snake_case")]
-enum IncomingPayload {
+enum Payload {
     Broadcast {
         message: usize,
     },
+    BroadcastOk,
     Read,
+    ReadOk {
+        messages: Vec<usize>,
+    },
     Topology {
         topology: HashMap<String, Vec<String>>,
     },
-}
-
-#[derive(Serialize)]
-#[serde(tag = "type")]
-#[serde(rename_all = "snake_case")]
-enum OutgoingPayload {
-    BroadcastOk,
-    ReadOk { messages: Vec<usize> },
     TopologyOk,
 }
