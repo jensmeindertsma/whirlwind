@@ -4,13 +4,16 @@ use tracing::{error, info};
 use whirlwind::{Body, Counter, Message, Node};
 
 fn main() {
-    tracing_subscriber::fmt().with_writer(io::stderr).init();
+    tracing_subscriber::fmt()
+        .with_writer(io::stderr)
+        .with_ansi(false)
+        .init();
 
     let mut counter = Counter::new();
 
     let mut node = Node::initialize(&mut counter).unwrap();
 
-    info!(?node.state, "initialized node");
+    info!(state = ?node.state, "initialized node");
 
     while let Some(next) = node.read() {
         let message: Message<IncomingPayload> = match next {
@@ -23,16 +26,31 @@ fn main() {
 
         let IncomingPayload { echo } = message.body.payload;
 
+        info!(
+            source = message.source,
+            echo,
+            id = message.body.id,
+            "receiving echo message"
+        );
+
+        let reply_id = counter.next();
         node.send(Message {
             source: node.state.id.clone(),
-            destination: message.source,
+            destination: message.source.clone(),
             body: Body {
-                id: Some(counter.next()),
+                id: Some(reply_id),
                 in_reply_to: message.body.id,
                 payload: OutgoingPayload { echo },
             },
         })
         .unwrap();
+
+        info!(
+            destination = message.source,
+            id = reply_id,
+            in_reply_to = message.body.id,
+            "replying with echo_ok"
+        )
     }
 }
 
