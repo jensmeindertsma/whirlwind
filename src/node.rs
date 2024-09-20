@@ -23,14 +23,14 @@ impl Node {
         #[derive(Deserialize)]
         #[serde(tag = "type")]
         #[serde(rename = "init")]
-        struct InitPayload {
+        struct Init {
             #[serde(rename = "node_id")]
             id: String,
             #[serde(rename = "node_ids")]
             nodes: Vec<String>,
         }
 
-        let init_message: Message<InitPayload> = serde_json::from_str(
+        let init_message: Message<Init> = serde_json::from_str(
             &input
                 .next()
                 .ok_or(InitializationError::NoMessage)?
@@ -38,14 +38,14 @@ impl Node {
         )
         .map_err(|e| InitializationError::FailedToDeserialize(e))?;
 
-        let InitPayload { id, nodes } = init_message.body.payload;
+        let Init { id, nodes } = init_message.body.payload;
 
         let state = State { id, nodes };
 
         #[derive(Serialize)]
         #[serde(tag = "type")]
         #[serde(rename = "init_ok")]
-        struct InitOkPayload {}
+        struct InitOk {}
 
         let reply = Message {
             source: state.id.clone(),
@@ -53,7 +53,7 @@ impl Node {
             body: Body {
                 id: Some(counter.next()),
                 in_reply_to: init_message.body.id,
-                payload: InitOkPayload {},
+                payload: InitOk {},
             },
         };
 
