@@ -10,7 +10,6 @@ fn main() {
         .init();
 
     let mut counter = Counter::new();
-
     let mut node = Node::initialize(&mut counter).unwrap();
 
     info!(state = ?node.state, "initialized node");
