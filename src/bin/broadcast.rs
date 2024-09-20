@@ -47,6 +47,11 @@ fn main() {
                                 .expect("we should be part of the topology");
 
                             for neighbor in neighbors {
+                                // We should instead add these messages to a queue.
+                                // A separate thread will attempt to send, and when we
+                                // receive a broadcast OK with a in_reply_to, we remove it
+                                // from the queue.
+                                // The queue thread will re-send messages every second.
                                 node.send(Message {
                                     source: node.state.id.clone(),
                                     destination: neighbor.clone(),
