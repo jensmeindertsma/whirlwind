@@ -13,9 +13,11 @@ This is my attempt at solving the [Fly.io Gossip Glomers distributed systems cha
 1. Make sure the [prerequisites](https://github.com/jepsen-io/maelstrom/blob/main/doc/01-getting-ready/index.md#prerequisites) are met by your system.
 2. Download the latest tarball (`tar.bz2` file) from the [Releases](https://github.com/jepsen-io/maelstrom/releases/latest) page.
 3. Extract the tarball to the `./maelstrom` directory in the root of this repository:
-   ```bash
-   $ tar -xf maelstrom.tar.bz2
-   ```
+
+```bash
+$ tar -xf maelstrom.tar.bz2
+```
+
 4. Run any of the implemented workloads using the `justfile`.
 
 ## Solutions
