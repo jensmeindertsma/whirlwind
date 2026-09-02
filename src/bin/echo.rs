@@ -94,42 +94,6 @@ fn handle_initialization(mut input: impl BufRead, mut output: impl Write) -> Ini
     payload
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-struct Message<'a, Payload> {
-    #[serde(rename = "src")]
-    source: &'a str,
-
-    #[serde(rename = "dest")]
-    destination: &'a str,
-
-    body: Body<Payload>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-
-struct Body<Payload> {
-    #[serde(rename = "msg_id")]
-    message_id: u16,
-
-    in_reply_to: Option<u16>,
-
-    #[serde(flatten)]
-    payload: Payload,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(tag = "type")]
-#[serde(rename = "init")]
-struct Initialization {
-    node_id: String,
-    node_ids: Vec<String>,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(tag = "type")]
-#[serde(rename = "init_ok")]
-struct InitializationOk {}
-
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type")]
 #[serde(rename = "echo")]
