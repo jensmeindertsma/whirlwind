@@ -1,4 +1,4 @@
-use serde::{Serialize, de::DeserializeOwned};
+use serde::{Deserialize, Serialize};
 use std::io;
 use tracing::Level;
 use whirlwind::{Message, Node, Reply};
@@ -11,7 +11,7 @@ fn main() {
         .with_max_level(Level::DEBUG)
         .init();
 
-    let node = Node::initialize();
+    let mut node = Node::initialize();
 
     node.handle(|message: Message<Echo>| Reply {
         payload: EchoOk {
@@ -20,16 +20,16 @@ fn main() {
     });
 }
 
-#[derive(Debug, DeserializeOwned)]
+#[derive(Debug, Deserialize)]
 #[serde(tag = "type")]
 #[serde(rename = "echo")]
-struct Echo<'a> {
-    echo: &'a str,
+struct Echo {
+    echo: String,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(tag = "type")]
 #[serde(rename = "echo_ok")]
-struct EchoOk<'a> {
-    echo: &'a str,
+struct EchoOk {
+    echo: String,
 }

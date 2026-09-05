@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use std::io::{self, BufRead, Lines, StdinLock, StdoutLock, Write};
+use std::{
+    io::{self, BufRead, Lines, StdinLock, StdoutLock, Write},
+    marker::PhantomData,
+};
 
 pub struct Node<'a> {
     input: Lines<StdinLock<'a>>,
@@ -83,9 +86,9 @@ impl Node<'_> {
         writeln!(self.output, "{serialized}").expect("standard output should be writeable");
     }
 
-    // pub fn messages<Payload>() -> impl Iterator<Item = Message<Payload>> {
-    //     todo!()
-    // }
+    pub fn messages<Payload>(&mut self) -> impl Iterator<Item = Message<Payload>> {
+        self.input.map(|line| self.read())
+    }
 
     pub fn handle<Incoming: DeserializeOwned, Outgoing: Serialize>(
         &mut self,
@@ -123,6 +126,10 @@ pub struct Message<Payload> {
 }
 
 impl<Payload> Message<Payload> {
+    pub fn new() -> MessageBuilder {
+        MessageBuilder {}
+    }
+
     pub fn id(&self) -> u16 {
         self.body.message_id
     }
@@ -134,6 +141,20 @@ impl<Payload> Message<Payload> {
     pub fn payload(self) -> Payload {
         self.body.payload
     }
+}
+
+struct Empty;
+struct WithSource;
+struct WithDestination;
+struct WithReply;
+struct WithPayload;
+
+struct MessageBuilder<Stage = Empty> {
+    stage: PhantomData<Stage>,
+}
+
+impl MessageBuilder<Blank> {
+    pub fn with_destination(self, destination: String) -> MessageBuilder<WithDestination> {}
 }
 
 #[derive(Debug, Deserialize, Serialize)]
