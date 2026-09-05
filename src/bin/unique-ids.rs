@@ -1,5 +1,5 @@
-use serde::Serialize;
-use whirlwind::Message;
+use serde::{Deserialize, Serialize};
+use whirlwind::{Message, Node, Reply};
 
 fn main() {
     tracing_subscriber::fmt()
@@ -14,7 +14,7 @@ fn main() {
     let node_id = node.id();
     let mut counter = 1;
 
-    for message in node.messages() {
+    while let Some(message) = node.messages().next() {
         node.send(Message {
             destination: message.source,
             in_reply_to: message.id,
@@ -23,7 +23,7 @@ fn main() {
             },
         });
 
-        id += 1;
+        counter += 1;
     }
 }
 

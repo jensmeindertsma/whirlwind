@@ -15,7 +15,7 @@ fn main() {
 
     node.handle(|message: Message<Echo>| Reply {
         payload: EchoOk {
-            echo: message.payload().echo,
+            echo: message.body.payload.echo,
         },
     });
 }

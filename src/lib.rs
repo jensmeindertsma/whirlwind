@@ -1,8 +1,5 @@
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use std::{
-    io::{self, BufRead, Lines, StdinLock, StdoutLock, Write},
-    marker::PhantomData,
-};
+use std::io::{self, BufRead, Lines, StdinLock, StdoutLock, Write};
 
 pub struct Node<'a> {
     input: Lines<StdinLock<'a>>,
@@ -30,13 +27,13 @@ impl Node<'_> {
         };
 
         let incoming: RawMessage<Initialization> =
-            Node::read_raw(&mut node).expect("there should be an initialization message");
+            Node::read(&mut node).expect("there should be an initialization message");
 
         let RawMessage {
             source,
             body:
                 Body {
-                    message_id,
+                    id: message_id,
                     payload:
                         Initialization {
                             node_id,
@@ -54,20 +51,20 @@ impl Node<'_> {
             source: node.id.clone(),
             destination: source,
             body: Body {
-                message_id: node.next_message_id,
+                id: node.next_message_id,
                 in_reply_to: Some(message_id),
                 payload: InitializationOk {},
             },
         };
 
-        Node::send_raw(&mut node, response);
+        Node::send(&mut node, response);
 
         node.next_message_id += 1;
 
         node
     }
 
-    fn read<Payload: DeserializeOwned>(&mut self) -> Option<Message<Payload>> {
+    fn read<Payload: DeserializeOwned>(&mut self) -> Option<RawMessage<Payload>> {
         let line = self
             .input
             .next()?
@@ -79,15 +76,19 @@ impl Node<'_> {
         Some(message)
     }
 
-    fn send<Payload: Serialize>(&mut self, message: impl IntoMessage<Payload>) {
+    pub fn send<Payload: Serialize>(&mut self, message: impl IntoMessage<Payload>) {
         let serialized =
             serde_json::to_string(&message).expect("message serialization should succeed");
 
         writeln!(self.output, "{serialized}").expect("standard output should be writeable");
     }
 
-    pub fn messages<Payload>(&mut self) -> impl Iterator<Item = Message<Payload>> {
-        self.input.map(|line| self.read())
+    pub fn receive(&mut self) {}
+
+    pub fn messages<Payload: DeserializeOwned>(
+        &mut self,
+    ) -> impl Iterator<Item = Message<Payload>> {
+        std::iter::from_fn(|| self.read())
     }
 
     pub fn handle<Incoming: DeserializeOwned, Outgoing: Serialize>(
@@ -95,16 +96,16 @@ impl Node<'_> {
         handler: fn(Message<Incoming>) -> Reply<Outgoing>,
     ) {
         while let Some(message) = self.read() {
-            let incoming_message_id = message.body.message_id;
+            let incoming_message_id = message.body.id;
             let incoming_source = message.source.clone();
 
             let reply = handler(message);
 
-            self.send(Message {
+            self.write(RawMessage {
                 source: self.id.clone(),
                 destination: incoming_source,
                 body: Body {
-                    message_id: self.next_message_id,
+                    id: self.next_message_id,
                     in_reply_to: Some(incoming_message_id),
                     payload: reply.payload,
                 },
@@ -117,70 +118,28 @@ impl Node<'_> {
 #[derive(Debug, Deserialize, Serialize)]
 struct RawMessage<Payload> {
     #[serde(rename = "src")]
-    pub source: String,
+    source: String,
 
     #[serde(rename = "dest")]
-    pub destination: String,
+    destination: String,
 
     body: Body<Payload>,
-}
-
-#[derive(Debug)]
-pub struct IncomingMessage<Payload> {
-    pub destination: String,
-    pub id: u16,
-    pub in_reply_to: Option<u16>,
-    pub payload: Payload,
-}
-
-#[derive(Debug)]
-pub struct Message<Payload> {
-    pub destination: String,
-    pub in_reply_to: Option<u16>,
-    pub payload: Payload,
-}
-
-impl<Payload> Message<Payload> {
-    pub fn new() -> MessageBuilder {
-        MessageBuilder {}
-    }
-
-    pub fn id(&self) -> u16 {
-        self.body.message_id
-    }
-
-    pub fn in_reply_to(&self) -> Option<u16> {
-        self.body.in_reply_to
-    }
-
-    pub fn payload(self) -> Payload {
-        self.body.payload
-    }
-}
-
-struct Empty;
-struct WithSource;
-struct WithDestination;
-struct WithReply;
-struct WithPayload;
-
-struct MessageBuilder<Stage = Empty> {
-    stage: PhantomData<Stage>,
-}
-
-impl MessageBuilder<Blank> {
-    pub fn with_destination(self, destination: String) -> MessageBuilder<WithDestination> {}
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Body<Payload> {
     #[serde(rename = "msg_id")]
-    message_id: u16,
+    id: u16,
 
     in_reply_to: Option<u16>,
 
     #[serde(flatten)]
     payload: Payload,
+}
+
+pub fn Message {
+    source: String,
+    d
 }
 
 pub struct Reply<Payload> {
