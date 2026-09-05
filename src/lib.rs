@@ -1,9 +1,12 @@
-use serde::{Deserialize, Serialize};
-use std::io::{self, BufRead, Lines, StdinLock, StdoutLock};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use std::io::{self, BufRead, Lines, StdinLock, StdoutLock, Write};
 
 pub struct Node<'a> {
     input: Lines<StdinLock<'a>>,
     output: StdoutLock<'a>,
+    id: String,
+    cluster: Vec<String>,
+    next_message_id: u16,
 }
 
 impl Node<'_> {
@@ -11,52 +14,126 @@ impl Node<'_> {
         let input = io::stdin().lock().lines();
         let output = io::stdout().lock();
 
-        let mut node = Self { input, output };
+        let mut node = Self {
+            input,
+            output,
 
-        let message: Message<Initialization> = Node::read(&mut node);
+            // No problem to place temporary values here as both constructors do not
+            // allocate memory until data is inserted and we replace these later.
+            id: String::new(),
+            cluster: Vec::new(),
 
-        Node::send(
-            &mut node,
-            Message {
-                source: message.body.payload.node_id,
-                destination: message.source,
-                body: Body {
-                    message_id: 1,
-                    in_reply_to: Some(message.body.message_id),
-                    payload: InitializationOk {},
+            next_message_id: 1,
+        };
+
+        let incoming: Message<Initialization> =
+            Node::read(&mut node).expect("there should be an initialization message");
+
+        let Message {
+            source,
+            body:
+                Body {
+                    message_id,
+                    payload:
+                        Initialization {
+                            node_id,
+                            node_ids: cluster,
+                        },
+                    ..
                 },
+            ..
+        } = incoming;
+
+        node.id = node_id;
+        node.cluster = cluster;
+
+        let response = Message {
+            source: node.id.clone(),
+            destination: source,
+            body: Body {
+                message_id: node.next_message_id,
+                in_reply_to: Some(message_id),
+                payload: InitializationOk {},
             },
-        );
+        };
+
+        Node::send(&mut node, response);
+
+        node.next_message_id += 1;
 
         node
     }
 
-    fn read<Payload>(&mut self) -> Message<Payload> {}
+    fn read<Payload: DeserializeOwned>(&mut self) -> Option<Message<Payload>> {
+        let line = self
+            .input
+            .next()?
+            .expect("standard input should be readable");
 
-    fn send<Payload>(&mut self, message: Message<Payload>) {}
+        let message =
+            serde_json::from_str(&line).expect("incoming payload should match expected payload");
+
+        Some(message)
+    }
+
+    fn send<Payload: Serialize>(&mut self, message: Message<Payload>) {
+        let serialized =
+            serde_json::to_string(&message).expect("message serialization should succeed");
+
+        writeln!(self.output, "{serialized}").expect("standard output should be writeable");
+    }
 
     // pub fn messages<Payload>() -> impl Iterator<Item = Message<Payload>> {
     //     todo!()
     // }
 
-    pub fn foo(&mut self, i: String) {}
+    pub fn handle<Incoming: DeserializeOwned, Outgoing: Serialize>(
+        &mut self,
+        handler: fn(Message<Incoming>) -> Reply<Outgoing>,
+    ) {
+        while let Some(message) = self.read() {
+            let incoming_message_id = message.body.message_id;
+            let incoming_source = message.source.clone();
 
-    // pub fn handle<Incomig, Outgoing>(
-    //     &mut self,
-    //     handler: fn(Message<Imcomimg>) -> Message<Outgoing>,
-    // ) {
-    // }
+            let reply = handler(message);
+
+            self.send(Message {
+                source: self.id.clone(),
+                destination: incoming_source,
+                body: Body {
+                    message_id: self.next_message_id,
+                    in_reply_to: Some(incoming_message_id),
+                    payload: reply.payload,
+                },
+            });
+            self.next_message_id += 1;
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-struct Message<Payload> {
+pub struct Message<Payload> {
     #[serde(rename = "src")]
-    source: String,
+    pub source: String,
 
     #[serde(rename = "dest")]
-    destination: String,
+    pub destination: String,
 
     body: Body<Payload>,
+}
+
+impl<Payload> Message<Payload> {
+    pub fn id(&self) -> u16 {
+        self.body.message_id
+    }
+
+    pub fn in_reply_to(&self) -> Option<u16> {
+        self.body.in_reply_to
+    }
+
+    pub fn payload(self) -> Payload {
+        self.body.payload
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -68,6 +145,10 @@ struct Body<Payload> {
 
     #[serde(flatten)]
     payload: Payload,
+}
+
+pub struct Reply<Payload> {
+    pub payload: Payload,
 }
 
 #[derive(Debug, Deserialize)]
