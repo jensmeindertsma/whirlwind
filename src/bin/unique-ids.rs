@@ -1,3 +1,4 @@
+use serde::Serialize;
 use whirlwind::Message;
 
 fn main() {
@@ -10,11 +11,30 @@ fn main() {
 
     let mut node = Node::initialize();
 
+    let node_id = node.id();
+    let mut counter = 1;
+
     for message in node.messages() {
         node.send(Message {
             destination: message.source,
             in_reply_to: message.id,
-            payload: UniqueId,
-        })
+            payload: GenerateOk {
+                id: format!("{node_id}-{counter}"),
+            },
+        });
+
+        id += 1;
     }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type")]
+#[serde(rename = "generate")]
+struct Generate {}
+
+#[derive(Debug, Serialize)]
+#[serde(tag = "type")]
+#[serde(rename = "generate_ok")]
+struct GenerateOk {
+    id: String,
 }

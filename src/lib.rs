@@ -50,7 +50,7 @@ impl Node<'_> {
         node.id = node_id;
         node.cluster = cluster;
 
-        let response = Message {
+        let response = RawMessage {
             source: node.id.clone(),
             destination: source,
             body: Body {
@@ -126,9 +126,16 @@ struct RawMessage<Payload> {
 }
 
 #[derive(Debug)]
-pub struct Message<Payload> {
+pub struct IncomingMessage<Payload> {
     pub destination: String,
     pub id: u16,
+    pub in_reply_to: Option<u16>,
+    pub payload: Payload,
+}
+
+#[derive(Debug)]
+pub struct Message<Payload> {
+    pub destination: String,
     pub in_reply_to: Option<u16>,
     pub payload: Payload,
 }
