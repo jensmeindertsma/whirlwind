@@ -115,7 +115,7 @@ impl Node<'_> {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct Message<Payload> {
+struct RawMessage<Payload> {
     #[serde(rename = "src")]
     pub source: String,
 
@@ -123,6 +123,14 @@ pub struct Message<Payload> {
     pub destination: String,
 
     body: Body<Payload>,
+}
+
+#[derive(Debug)]
+pub struct Message<Payload> {
+    pub destination: String,
+    pub id: u16,
+    pub in_reply_to: Option<u16>,
+    pub payload: Payload,
 }
 
 impl<Payload> Message<Payload> {

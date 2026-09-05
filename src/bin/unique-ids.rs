@@ -11,6 +11,10 @@ fn main() {
     let mut node = Node::initialize();
 
     for message in node.messages() {
-        node.send(Message {})
+        node.send(Message {
+            destination: message.source,
+            in_reply_to: message.id,
+            payload: UniqueId,
+        })
     }
 }
