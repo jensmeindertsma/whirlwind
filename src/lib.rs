@@ -29,10 +29,10 @@ impl Node<'_> {
             next_message_id: 1,
         };
 
-        let incoming: Message<Initialization> =
-            Node::read(&mut node).expect("there should be an initialization message");
+        let incoming: RawMessage<Initialization> =
+            Node::read_raw(&mut node).expect("there should be an initialization message");
 
-        let Message {
+        let RawMessage {
             source,
             body:
                 Body {
@@ -60,7 +60,7 @@ impl Node<'_> {
             },
         };
 
-        Node::send(&mut node, response);
+        Node::send_raw(&mut node, response);
 
         node.next_message_id += 1;
 
@@ -79,7 +79,7 @@ impl Node<'_> {
         Some(message)
     }
 
-    fn send<Payload: Serialize>(&mut self, message: Message<Payload>) {
+    fn send<Payload: Serialize>(&mut self, message: impl IntoMessage<Payload>) {
         let serialized =
             serde_json::to_string(&message).expect("message serialization should succeed");
 
