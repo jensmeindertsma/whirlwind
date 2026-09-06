@@ -13,23 +13,27 @@ fn main() {
 
     let mut node = Node::initialize();
 
-    node.handle(|message: Incoming<Echo>| Reply {
-        payload: EchoOk {
-            echo: message.payload.echo,
-        },
-    });
+    let mut counter = 0;
+
+    node.handle(|message: Incoming<Generate>| {
+        counter += 1;
+
+        Reply {
+            payload: GenerateOk {
+                id: format!("{}-{}", node.id, counter),
+            },
+        }
+    })
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type")]
-#[serde(rename = "echo")]
-struct Echo {
-    echo: String,
-}
+#[serde(rename = "generate")]
+struct Generate {}
 
 #[derive(Debug, Serialize)]
 #[serde(tag = "type")]
-#[serde(rename = "echo_ok")]
-struct EchoOk {
-    echo: String,
+#[serde(rename = "generate_ok")]
+struct GenerateOk {
+    id: String,
 }
