@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
-use whirlwind::{Message, Node, Reply};
+use std::io;
+use tracing::Level;
+use whirlwind::{Incoming, Node, Reply};
 
 fn main() {
     tracing_subscriber::fmt()
@@ -11,20 +13,17 @@ fn main() {
 
     let mut node = Node::initialize();
 
-    let node_id = node.id();
-    let mut counter = 1;
+    let mut counter = 0;
 
-    while let Some(message) = node.messages().next() {
-        node.send(Message {
-            destination: message.source,
-            in_reply_to: message.id,
-            payload: GenerateOk {
-                id: format!("{node_id}-{counter}"),
-            },
-        });
-
+    node.handle(|message: Incoming<Generate>| {
         counter += 1;
-    }
+
+        Reply {
+            payload: GenerateOk {
+                id: format!("{}-{}", node.id, counter),
+            },
+        }
+    })
 }
 
 #[derive(Debug, Deserialize)]

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::io;
 use tracing::Level;
-use whirlwind::{Message, Node, Reply};
+use whirlwind::{Incoming, Node, Reply};
 
 fn main() {
     tracing_subscriber::fmt()
@@ -13,9 +13,9 @@ fn main() {
 
     let mut node = Node::initialize();
 
-    node.handle(|message: Message<Echo>| Reply {
+    node.handle(|message: Incoming<Echo>| Reply {
         payload: EchoOk {
-            echo: message.body.payload.echo,
+            echo: message.payload.echo,
         },
     });
 }
