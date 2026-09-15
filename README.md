@@ -22,10 +22,11 @@ $ tar -xf maelstrom.tar.bz2
 
 ## Solutions
 
-| Challenge | Title                                              | Implementation          | Verification             |
-| --------- | -------------------------------------------------- | ----------------------- | ------------------------ |
-| 1         | [Echo](https://fly.io/dist-sys/1/)                 | `src/bin/echo.rs`       | `$ just test-echo`       |
-| 2         | [Unique ID Generation](https://fly.io/dist-sys/2/) | `src/bin/unique-ids.rs` | `$ just test-unique-ids` |
+| Challenge | Title                                                | Implementation          | Verification                        |
+| --------- | ---------------------------------------------------- | ----------------------- | ----------------------------------- |
+| 1         | [Echo](https://fly.io/dist-sys/1/)                   | `src/bin/echo.rs`       | `$ just test-echo`                  |
+| 2         | [Unique ID Generation](https://fly.io/dist-sys/2/)   | `src/bin/unique-ids.rs` | `$ just test-unique-ids`            |
+| 3a        | [Single-Node Broadcast](https://fly.io/dist-sys/3a/) | `src/bin/broadcast.rs`  | `$ just test-single-node-broadcast` |
 
 ## References
 
