@@ -13,33 +13,35 @@ fn main() {
 
     let mut node = Node::initialize();
 
-    while let Some(message) = node.receive::<Echo>() {
-        let Echo { echo } = message.body.payload;
+    let mut counter = 1;
 
+    while let Some(message) = node.receive::<Generate>() {
         let reply = Message {
             source: node.id.clone(),
             destination: message.source,
             body: Body {
                 message_id: Some(node.next_message_id()),
                 in_reply_to: message.body.message_id,
-                payload: EchoOk { echo },
+                payload: GenerateOk {
+                    id: format!("{}-{}", node.id, counter),
+                },
             },
         };
 
         node.send(reply);
+
+        counter += 1;
     }
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type")]
-#[serde(rename = "echo")]
-struct Echo {
-    echo: String,
-}
+#[serde(rename = "generate")]
+struct Generate {}
 
 #[derive(Debug, Serialize)]
 #[serde(tag = "type")]
-#[serde(rename = "echo_ok")]
-struct EchoOk {
-    echo: String,
+#[serde(rename = "generate_ok")]
+struct GenerateOk {
+    id: String,
 }
