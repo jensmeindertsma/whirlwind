@@ -1,6 +1,7 @@
 use crate::{Body, Message};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::io::{self, BufRead, Lines, StdinLock, StdoutLock, Write};
+use tracing::info_span;
 
 pub struct Node<'a> {
     input: Lines<StdinLock<'a>>,
@@ -11,6 +12,8 @@ pub struct Node<'a> {
 
 impl Node<'_> {
     pub fn initialize() -> Self {
+        let initialization_span = info_span!("initialization").entered();
+
         let input = io::stdin().lock().lines();
         let output = io::stdout().lock();
 
@@ -29,9 +32,11 @@ impl Node<'_> {
 
         let Initialization { node_id, node_ids } = incoming.body.payload;
 
-        node.id = node_id;
+        tracing::info!("we are `{node_id}`");
 
         tracing::debug!("cluster: {node_ids:?}");
+
+        node.id = node_id;
 
         let reply = Message {
             source: node.id.clone(),
@@ -44,6 +49,8 @@ impl Node<'_> {
         };
 
         node.send(reply);
+
+        initialization_span.exit();
 
         node
     }
