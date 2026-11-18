@@ -1,13 +1,17 @@
-use crate::{Body, Message};
+mod protocol;
+
+use protocol::{Body, IncomingProtocolMessage, OutgoingProtocolMessage};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::io::{self, BufRead, Lines, StdinLock, StdoutLock, Write};
 use tracing::info_span;
+
+use crate::message::{Incoming, Message};
 
 pub struct Node<'a> {
     input: Lines<StdinLock<'a>>,
     output: StdoutLock<'a>,
     pub id: String,
-    counter: u16,
+    counter: u32,
 }
 
 impl Node<'_> {
@@ -26,11 +30,11 @@ impl Node<'_> {
             counter,
         };
 
-        let incoming: Message<Initialization> = node
+        let incoming: Incoming<Initialization> = node
             .receive()
             .expect("there should be an initialization message");
 
-        let Initialization { node_id, node_ids } = incoming.body.payload;
+        let Initialization { node_id, node_ids } = incoming.payload;
 
         tracing::info!("we are `{node_id}`");
 
@@ -39,41 +43,67 @@ impl Node<'_> {
         node.id = node_id;
 
         let reply = Message {
-            source: node.id.clone(),
-            destination: incoming.source,
-            body: Body {
-                message_id: Some(counter),
-                in_reply_to: incoming.body.message_id,
-                payload: InitializationOk {},
-            },
+            id: counter,
+            destination: &incoming.source,
+            in_reply_to: Some(incoming.id),
+            payload: InitializationOk {},
         };
 
-        node.send(reply);
+        node.send(&reply);
 
         initialization_span.exit();
 
         node
     }
 
-    pub fn receive<Payload: DeserializeOwned>(&mut self) -> Option<Message<Payload>> {
+    pub fn receive<Payload: DeserializeOwned>(&mut self) -> Option<Incoming<Payload>> {
         let line = self
             .input
             .next()?
             .expect("standard input should be readable");
 
-        let message =
+        let protocol_message: IncomingProtocolMessage<Payload> =
             serde_json::from_str(&line).expect("incoming payload should match expected payload");
 
-        Some(message)
+        let Body {
+            message_id,
+            in_reply_to,
+            payload,
+        } = protocol_message.body;
+
+        Some(Incoming {
+            id: message_id.expect("all messages should have an ID"),
+            source: protocol_message.source,
+            in_reply_to,
+            payload,
+        })
     }
 
-    pub fn send<Payload: Serialize>(&mut self, message: Message<Payload>) {
-        let serialized = serde_json::to_string(&message).expect("message should be serializable");
+    pub fn send<Payload: Serialize>(&mut self, message: &Message<Payload>) {
+        let Message {
+            id,
+            destination,
+            in_reply_to,
+            payload,
+        } = message;
+
+        let protocol_message = OutgoingProtocolMessage {
+            source: &self.id,
+            destination,
+            body: Body {
+                message_id: Some(*id),
+                in_reply_to: *in_reply_to,
+                payload,
+            },
+        };
+
+        let serialized =
+            serde_json::to_string(&protocol_message).expect("message should be serializable");
 
         writeln!(self.output, "{serialized}").expect("standard output should be writeable");
     }
 
-    pub fn next_message_id(&mut self) -> u16 {
+    pub fn new_message_id(&mut self) -> u32 {
         self.counter += 1;
 
         self.counter

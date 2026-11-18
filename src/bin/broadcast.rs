@@ -3,8 +3,9 @@ use std::{
     collections::{HashMap, HashSet},
     io,
 };
-use tracing::{Level, info_span};
-use whirlwind::{Body, Message, Node};
+use tracing::Level;
+use tracing::info_span;
+use whirlwind::{Message, Node};
 
 fn main() {
     tracing_subscriber::fmt()
@@ -23,10 +24,8 @@ fn main() {
 
     let mut network_topology: Option<HashMap<String, Vec<String>>> = None;
 
-    while let Some(message) = node.receive::<Payload>() {
-        // TODO: span per payload, figure out how to record messages that were acknowledged
-
-        let response = match message.body.payload {
+    while let Some(incoming) = node.receive::<Payload>() {
+        let response = match incoming.payload {
             Payload::Broadcast { value } => {
                 let broadcast_span = info_span!("broadcast").entered();
 
@@ -40,20 +39,15 @@ fn main() {
 
                     for neighbor in neighbors {
                         for value in &values {
-                            let next_message_id = node.next_message_id();
+                            let message_id = node.new_message_id();
 
-                            tracing::info!(
-                                "sending value {value} to {neighbor} id={next_message_id}",
-                            );
+                            tracing::info!("sending value {value} to {neighbor} id={message_id}",);
 
-                            node.send(Message {
-                                source: node.id.clone(),
-                                destination: neighbor.clone(),
-                                body: Body {
-                                    message_id: Some(next_message_id),
-                                    in_reply_to: message.body.message_id,
-                                    payload: Payload::Broadcast { value: *value },
-                                },
+                            node.send(&Message {
+                                id: message_id,
+                                destination: neighbor,
+                                in_reply_to: Some(incoming.id),
+                                payload: Payload::Broadcast { value: *value },
                             });
                         }
                     }
@@ -77,10 +71,9 @@ fn main() {
                 Payload::TopologyOk
             }
             Payload::BroadcastOk => {
-                let broadcast_span =
-                    info_span!("broadcast", id = message.body.in_reply_to).entered();
+                let broadcast_span = info_span!("broadcast", id = incoming.in_reply_to).entered();
 
-                tracing::info!("received by {}", message.source);
+                tracing::info!("received by {}", incoming.source);
 
                 broadcast_span.exit();
 
@@ -93,16 +86,13 @@ fn main() {
         };
 
         let reply = Message {
-            source: node.id.clone(),
-            destination: message.source,
-            body: Body {
-                message_id: Some(node.next_message_id()),
-                in_reply_to: message.body.message_id,
-                payload: response,
-            },
+            id: node.new_message_id(),
+            destination: &incoming.source,
+            in_reply_to: Some(incoming.id),
+            payload: response,
         };
 
-        node.send(reply);
+        node.send(&reply);
     }
 
     node_span.exit();
