@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, io};
 use tracing::Level;
-use whirlwind::{Body, Message, Node};
+use whirlwind::{Message, Node};
 
 fn main() {
     tracing_subscriber::fmt()
@@ -15,8 +15,8 @@ fn main() {
 
     let mut values = Vec::new();
 
-    while let Some(message) = node.receive::<Payload>() {
-        let response = match message.body.payload {
+    while let Some(incoming) = node.receive::<Payload>() {
+        let response = match incoming.payload {
             Payload::Broadcast { value } => {
                 values.push(value);
 
@@ -31,16 +31,13 @@ fn main() {
         };
 
         let reply = Message {
-            source: node.id.clone(),
-            destination: message.source,
-            body: Body {
-                message_id: Some(node.next_message_id()),
-                in_reply_to: message.body.message_id,
-                payload: response,
-            },
+            id: node.new_message_id(),
+            destination: &incoming.source,
+            in_reply_to: Some(incoming.id),
+            payload: response,
         };
 
-        node.send(reply);
+        node.send(&reply);
     }
 }
 
