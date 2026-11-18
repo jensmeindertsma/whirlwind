@@ -37,7 +37,10 @@ fn main() {
                 {
                     tracing::info!("sending value {value} to {neighbors:?}");
 
-                    for neighbor in neighbors {
+                    for neighbor in neighbors
+                        .iter()
+                        .filter(|neighbor| **neighbor != incoming.source)
+                    {
                         for value in &values {
                             let message_id = node.new_message_id();
 
