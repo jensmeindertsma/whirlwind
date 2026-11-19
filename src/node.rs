@@ -1,7 +1,7 @@
 use super::{Body, Message};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::io::{self, BufRead, Lines, StdinLock, StdoutLock, Write};
-use tracing::info;
+use tracing::{debug, info};
 
 pub struct Node<'a> {
     pub id: String,
@@ -31,9 +31,13 @@ impl Node<'_> {
             counter,
         };
 
+        debug!("waiting for message");
+
         let message: Message<Initialization> = node
             .receive()
             .expect("there should be an initialization message");
+
+        debug!("received message");
 
         let Initialization { node_id, node_ids } = message.body.payload;
 
@@ -50,9 +54,11 @@ impl Node<'_> {
             },
         };
 
-        info!("assigned node ID {}", node.id);
+        debug!("sending acknowledgement");
 
         node.send(&reply);
+
+        info!("completed successfully");
 
         node
     }
