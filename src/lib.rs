@@ -1,5 +1,5 @@
 mod message;
 mod node;
 
-pub use message::{Incoming, Message};
+pub use message::{Body, Message};
 pub use node::Node;
