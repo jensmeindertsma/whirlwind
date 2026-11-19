@@ -1,17 +1,20 @@
 use serde::{Deserialize, Serialize};
-use whirlwind::{Message, Node};
+use whirlwind::{Body, Message, Node};
 
 fn main() {
     let mut node = Node::initialize();
 
-    while let Some(incoming) = node.receive::<Echo>() {
-        let Echo { echo } = incoming.payload;
+    while let Some(message) = node.receive::<Echo>() {
+        let Echo { echo } = message.body.payload;
 
         let reply = Message {
-            id: node.new_message_id(),
-            destination: &incoming.source,
-            in_reply_to: Some(incoming.id),
-            payload: EchoOk { echo },
+            source: node.id.clone(),
+            destination: message.source,
+            body: Body {
+                message_id: node.new_message_id(),
+                in_reply_to: Some(message.body.message_id),
+                payload: EchoOk { echo },
+            },
         };
 
         node.send(&reply);

@@ -1,6 +1,7 @@
-use std::io;
+use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, io};
 use tracing::{Level, info};
-// use whirlwind::Node;
+use whirlwind::{Body, Message, Node};
 
 fn main() {
     tracing_subscriber::fmt()
@@ -9,7 +10,41 @@ fn main() {
         .with_max_level(Level::DEBUG)
         .init();
 
-    // let node = Node::initialize();
+    let mut node = Node::initialize();
 
-    info!("initialization completed")
+    info!("initialization completed");
+
+    let neighbors: HashMap<String, Vec<String>> = HashMap::new();
+
+    while let Some(message) = node.receive::<Payload>() {
+        let reply = Message {
+            source: node.id.clone(),
+            destination: message.source,
+            body: Body {
+                message_id: node.new_message_id(),
+                in_reply_to: Some(message.body.message_id),
+                payload: Payload::BroadcastOk,
+            },
+        };
+
+        node.send(&reply);
+    }
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(tag = "type")]
+#[serde(rename_all = "snake_case")]
+enum Payload {
+    Broadcast {
+        message: u32,
+    },
+    BroadcastOk,
+    Read,
+    ReadOk {
+        values: Vec<u32>,
+    },
+    Topology {
+        topology: HashMap<String, Vec<String>>,
+    },
+    TopologyOk,
 }

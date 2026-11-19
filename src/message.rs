@@ -1,13 +1,23 @@
-pub struct Incoming<Payload> {
-    pub id: u32,
+use serde::{Deserialize, Serialize};
+
+#[derive(Deserialize, Serialize)]
+pub struct Message<Payload> {
+    #[serde(rename = "src")]
     pub source: String,
-    pub in_reply_to: Option<u32>,
-    pub payload: Payload,
+
+    #[serde(rename = "dest")]
+    pub destination: String,
+
+    pub body: Body<Payload>,
 }
 
-pub struct Message<'a, Payload> {
-    pub id: u32,
-    pub destination: &'a str,
+#[derive(Deserialize, Serialize)]
+pub struct Body<Payload> {
+    #[serde(rename = "msg_id")]
+    pub message_id: u32,
+
     pub in_reply_to: Option<u32>,
+
+    #[serde(flatten)]
     pub payload: Payload,
 }

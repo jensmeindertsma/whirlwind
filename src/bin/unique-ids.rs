@@ -1,19 +1,21 @@
 use serde::{Deserialize, Serialize};
-use whirlwind::{Message, Node};
+use whirlwind::{Body, Message, Node};
 
 fn main() {
     let mut node = Node::initialize();
 
     let mut counter = 1;
 
-    while let Some(incoming) = node.receive::<Generate>() {
+    while let Some(message) = node.receive::<Generate>() {
         let reply = Message {
-            id: node.new_message_id(),
-            destination: incoming.source.as_str(),
-            in_reply_to: Some(incoming.id),
-
-            payload: GenerateOk {
-                id: format!("{}-{}", node.id, counter),
+            source: node.id.clone(),
+            destination: message.source,
+            body: Body {
+                message_id: node.new_message_id(),
+                in_reply_to: Some(message.body.message_id),
+                payload: GenerateOk {
+                    id: format!("{}-{}", node.id, counter),
+                },
             },
         };
 
