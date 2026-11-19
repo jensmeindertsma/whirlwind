@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, io};
-use tracing::{Level, info};
+use tracing::{Level, debug, info};
 use whirlwind::{Body, Message, Node};
 
 fn main() {
@@ -12,9 +12,11 @@ fn main() {
 
     let mut node = Node::initialize();
 
+    debug!("assigned node ID {}", node.id);
+
     info!("initialization completed");
 
-    let neighbors: HashMap<String, Vec<String>> = HashMap::new();
+    let mut topology = HashMap::new();
 
     while let Some(message) = node.receive::<Payload>() {
         let reply = Message {
@@ -23,7 +25,19 @@ fn main() {
             body: Body {
                 message_id: node.new_message_id(),
                 in_reply_to: Some(message.body.message_id),
-                payload: Payload::BroadcastOk,
+                payload: match message.body.payload {
+                    Payload::Topology {
+                        topology: new_topology,
+                    } => {
+                        debug!("received new topology: {topology:?}");
+                        debug!("my neighbors are: {:?}", topology["x"]);
+
+                        topology = new_topology;
+
+                        Payload::BroadcastOk
+                    }
+                    _ => todo!(),
+                },
             },
         };
 
