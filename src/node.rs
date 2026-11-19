@@ -3,30 +3,34 @@ mod protocol;
 use protocol::{Body, IncomingProtocolMessage, OutgoingProtocolMessage};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::io::{self, BufRead, Lines, StdinLock, StdoutLock, Write};
-use tracing::info_span;
 
 use crate::message::{Incoming, Message};
 
 pub struct Node<'a> {
+    pub id: String,
+    pub cluster: Vec<String>,
+
     input: Lines<StdinLock<'a>>,
     output: StdoutLock<'a>,
-    pub id: String,
+
     counter: u32,
 }
 
 impl Node<'_> {
     pub fn initialize() -> Self {
-        let initialization_span = info_span!("initialization").entered();
-
         let input = io::stdin().lock().lines();
         let output = io::stdout().lock();
 
         let counter = 1;
 
         let mut node = Node {
+            // Temporary non-allocating value until initialization completes
+            id: String::new(),
+            cluster: Vec::new(),
+
             input,
             output,
-            id: String::new(),
+
             counter,
         };
 
@@ -36,11 +40,8 @@ impl Node<'_> {
 
         let Initialization { node_id, node_ids } = incoming.payload;
 
-        tracing::info!("we are `{node_id}`");
-
-        tracing::debug!("cluster: {node_ids:?}");
-
         node.id = node_id;
+        node.cluster = node_ids;
 
         let reply = Message {
             id: counter,
@@ -50,8 +51,6 @@ impl Node<'_> {
         };
 
         node.send(&reply);
-
-        initialization_span.exit();
 
         node
     }

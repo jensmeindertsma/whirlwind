@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Deserialize)]
 pub struct IncomingProtocolMessage<Payload> {
     #[serde(rename = "src")]
     pub source: String,
@@ -11,7 +11,7 @@ pub struct IncomingProtocolMessage<Payload> {
     pub body: Body<Payload>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Serialize)]
 pub struct OutgoingProtocolMessage<'a, Payload> {
     #[serde(rename = "src")]
     pub source: &'a str,
@@ -22,7 +22,7 @@ pub struct OutgoingProtocolMessage<'a, Payload> {
     pub body: Body<Payload>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct Body<Payload> {
     #[serde(rename = "msg_id")]
     pub message_id: Option<u32>,
