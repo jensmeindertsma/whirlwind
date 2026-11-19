@@ -1,20 +1,21 @@
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, io};
-use tracing::{Level, debug, info};
+use tracing::{Level, debug, info_span};
 use whirlwind::{Body, Message, Node};
 
 fn main() {
     tracing_subscriber::fmt()
-        .with_ansi(false)
         .with_writer(io::stderr)
+        .with_ansi(false)
+        .with_target(false)
         .with_max_level(Level::DEBUG)
         .init();
 
+    let initialization_span = info_span!("initialization").entered();
+
     let mut node = Node::initialize();
 
-    debug!("assigned node ID {}", node.id);
-
-    info!("initialization completed");
+    initialization_span.exit();
 
     let mut topology = HashMap::new();
 
@@ -29,12 +30,15 @@ fn main() {
                     Payload::Topology {
                         topology: new_topology,
                     } => {
-                        debug!("received new topology: {topology:?}");
-                        debug!("my neighbors are: {:?}", topology["x"]);
-
                         topology = new_topology;
 
-                        Payload::BroadcastOk
+                        debug!("received new topology: {topology:?}");
+
+                        if !topology.is_empty() {
+                            debug!("my neighbors are: {:?}", topology.get(&node.id));
+                        }
+
+                        Payload::TopologyOk
                     }
                     _ => todo!(),
                 },

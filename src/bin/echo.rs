@@ -1,8 +1,21 @@
 use serde::{Deserialize, Serialize};
+use std::io;
+use tracing::{Level, info_span};
 use whirlwind::{Body, Message, Node};
 
 fn main() {
+    tracing_subscriber::fmt()
+        .with_writer(io::stderr)
+        .with_ansi(false)
+        .with_target(false)
+        .with_max_level(Level::DEBUG)
+        .init();
+
+    let initialization_span = info_span!("initialization").entered();
+
     let mut node = Node::initialize();
+
+    initialization_span.exit();
 
     while let Some(message) = node.receive::<Echo>() {
         let Echo { echo } = message.body.payload;

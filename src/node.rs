@@ -1,6 +1,7 @@
 use super::{Body, Message};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::io::{self, BufRead, Lines, StdinLock, StdoutLock, Write};
+use tracing::info;
 
 pub struct Node<'a> {
     pub id: String,
@@ -48,6 +49,8 @@ impl Node<'_> {
                 payload: InitializationOk {},
             },
         };
+
+        info!("assigned node ID {}", node.id);
 
         node.send(&reply);
 
