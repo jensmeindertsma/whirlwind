@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, io};
-use tracing::{Level, debug, info_span};
+use std::{
+    collections::{HashMap, HashSet},
+    io,
+};
+use tracing::{Level, info, info_span};
 use whirlwind::{Body, Message, Node};
 
 fn main() {
@@ -17,7 +20,9 @@ fn main() {
 
     initialization_span.exit();
 
-    let mut topology = HashMap::new();
+    let mut neighbors = Vec::new();
+
+    let mut values = HashSet::new();
 
     while let Some(message) = node.receive::<Payload>() {
         let reply = Message {
@@ -27,20 +32,54 @@ fn main() {
                 message_id: node.new_message_id(),
                 in_reply_to: Some(message.body.message_id),
                 payload: match message.body.payload {
-                    Payload::Topology {
-                        topology: new_topology,
-                    } => {
-                        topology = new_topology;
+                    Payload::Topology { mut topology } => {
+                        info!("received new topology");
 
-                        debug!("received new topology: {topology:?}");
+                        if let Some(new_neighbors) = topology.remove(&node.id) {
+                            neighbors = new_neighbors;
 
-                        if !topology.is_empty() {
-                            debug!("my neighbors are: {:?}", topology.get(&node.id));
+                            info!("my neighbors are {neighbors:?}")
                         }
 
                         Payload::TopologyOk
                     }
-                    _ => todo!(),
+                    Payload::Broadcast { message: value } => {
+                        info!("received broadcast message {value}");
+
+                        // Only broadcast new values
+                        if !values.contains(&value) {
+                            values.insert(value);
+
+                            info!("sending message {value} to my neighbors");
+
+                            for neighbor in neighbors.iter() {
+                                let message = Message {
+                                    source: node.id.clone(),
+                                    destination: neighbor.to_string(),
+                                    body: Body {
+                                        message_id: node.new_message_id(),
+                                        in_reply_to: None,
+                                        payload: Payload::Broadcast { message: value },
+                                    },
+                                };
+
+                                node.send(&message);
+                            }
+                        }
+
+                        Payload::BroadcastOk
+                    }
+                    Payload::Read => {
+                        info!(
+                            "responding to read request with values {:?}",
+                            values.iter().copied().collect::<Vec<u32>>()
+                        );
+
+                        Payload::ReadOk {
+                            messages: values.iter().copied().collect(),
+                        }
+                    }
+                    _ => continue,
                 },
             },
         };
@@ -59,7 +98,7 @@ enum Payload {
     BroadcastOk,
     Read,
     ReadOk {
-        values: Vec<u32>,
+        messages: Vec<u32>,
     },
     Topology {
         topology: HashMap<String, Vec<String>>,
