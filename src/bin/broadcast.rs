@@ -46,9 +46,7 @@ fn main() {
                 if !values.contains(&value) {
                     values.insert(value);
 
-                    for neighbor in neighbors.iter()
-                    /*.filter(|n| **n != message.source)*/
-                    {
+                    for neighbor in neighbors.iter().filter(|n| **n != message.source) {
                         info!(destination = neighbor, value, "broadcasting new value");
 
                         let message = Message {
