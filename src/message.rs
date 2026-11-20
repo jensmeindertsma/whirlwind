@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct Message<Payload> {
     #[serde(rename = "src")]
     pub source: String,
@@ -11,7 +11,7 @@ pub struct Message<Payload> {
     pub body: Body<Payload>,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct Body<Payload> {
     #[serde(rename = "msg_id")]
     pub message_id: Option<u32>,

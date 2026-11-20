@@ -2,6 +2,9 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
     io,
+    sync::{Arc, Mutex},
+    thread,
+    time::Duration,
 };
 use tracing::{Level, info, info_span};
 use whirlwind::{Body, Message, Node};
@@ -23,6 +26,9 @@ fn main() {
     let mut neighbors = Vec::new();
 
     let mut values = HashSet::new();
+
+    let mut unacknowledged: Arc<Mutex<HashMap<u32, Message<Payload>>>> =
+        Arc::new(Mutex::new(HashMap::new()));
 
     while let Some(message) = node.receive::<Payload>() {
         let response = match message.body.payload {
@@ -50,26 +56,48 @@ fn main() {
                     for neighbor in neighbors.iter().filter(|n| **n != message.source) {
                         info!(destination = neighbor, value, "broadcasting new value");
 
+                        let message_id = node.new_message_id();
+
                         let message = Message {
                             source: node.id.clone(),
                             destination: neighbor.to_string(),
                             body: Body {
-                                message_id: None,
+                                message_id: Some(message_id),
                                 in_reply_to: None,
                                 payload: Payload::Broadcast { message: value },
                             },
                         };
 
+                        unacknowledged
+                            .lock()
+                            .expect("mutex should not deadlock")
+                            .insert(message_id, message.clone());
+
+                        let send_handle = node.handler();
+
+                        let unacknowledged_handle = unacknowledged.clone();
+
+                        thread::spawn(move || {
+                            loop {
+                                thread::sleep(Duration::from_millis(1000));
+
+                                if unacknowledged_handle
+                                    .lock()
+                                    .expect("mutex should not deadlock")
+                                    .contains_key(&message_id)
+                                {
+                                    send_handle.send(&message);
+                                } else {
+                                    break;
+                                }
+                            }
+                        });
+
                         node.send(&message);
                     }
                 }
 
-                // Only acknowledge messages coming from clients, only those have message ID's
-                if message.body.message_id.is_some() {
-                    Payload::BroadcastOk
-                } else {
-                    continue;
-                }
+                Payload::BroadcastOk
             }
             Payload::Read => {
                 let _read_span = info_span!("read").entered();
@@ -102,7 +130,7 @@ fn main() {
     }
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(tag = "type")]
 #[serde(rename_all = "snake_case")]
 enum Payload {

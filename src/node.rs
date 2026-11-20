@@ -1,6 +1,6 @@
 use super::{Body, Message};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use std::io::{self, BufRead, Lines, StdinLock, StdoutLock, Write};
+use std::io::{self, BufRead, Lines, StdinLock, Write};
 use tracing::{debug, info};
 
 pub struct Node<'a> {
@@ -8,7 +8,6 @@ pub struct Node<'a> {
     pub cluster: Vec<String>,
 
     input: Lines<StdinLock<'a>>,
-    output: StdoutLock<'a>,
 
     counter: u32,
 }
@@ -16,7 +15,6 @@ pub struct Node<'a> {
 impl Node<'_> {
     pub fn initialize() -> Self {
         let input = io::stdin().lock().lines();
-        let output = io::stdout().lock();
 
         let counter = 1;
 
@@ -26,7 +24,6 @@ impl Node<'_> {
             cluster: Vec::new(),
 
             input,
-            output,
 
             counter,
         };
@@ -75,10 +72,10 @@ impl Node<'_> {
         Some(message)
     }
 
-    pub fn send<Payload: Serialize>(&mut self, message: &Message<Payload>) {
+    pub fn send<Payload: Serialize>(&self, message: &Message<Payload>) {
         let serialized = serde_json::to_string(message).expect("message should be serializable");
 
-        writeln!(self.output, "{serialized}").expect("standard output should be writeable");
+        writeln!(io::stdout().lock(), "{serialized}").expect("standard output should be writeable");
     }
 
     pub fn new_message_id(&mut self) -> u32 {
