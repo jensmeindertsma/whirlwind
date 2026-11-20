@@ -6,7 +6,7 @@ use std::{
     thread,
     time::Duration,
 };
-use tracing::{Level, info, info_span};
+use tracing::{Level, debug, info, info_span};
 use whirlwind::{Body, Message, Node};
 
 fn main() {
@@ -98,6 +98,18 @@ fn main() {
                 }
 
                 Payload::BroadcastOk
+            }
+            Payload::BroadcastOk => {
+                let acknowledged_id = message.body.in_reply_to.expect("broadcast acknowledgment");
+
+                debug!("broadcast message {acknowledged_id} was acknowledged");
+
+                unacknowledged
+                    .lock()
+                    .expect("mutex should not deadlock")
+                    .remove(&acknowledged_id);
+
+                continue;
             }
             Payload::Read => {
                 let _read_span = info_span!("read").entered();
