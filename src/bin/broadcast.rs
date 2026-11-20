@@ -46,6 +46,7 @@ fn main() {
                 if !values.contains(&value) {
                     values.insert(value);
 
+                    // Don't broadcast back to source
                     for neighbor in neighbors.iter().filter(|n| **n != message.source) {
                         info!(destination = neighbor, value, "broadcasting new value");
 
@@ -63,6 +64,7 @@ fn main() {
                     }
                 }
 
+                // Only acknowledge messages coming from clients, only those have message ID's
                 if message.body.message_id.is_some() {
                     Payload::BroadcastOk
                 } else {
