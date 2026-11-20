@@ -25,62 +25,76 @@ fn main() {
     let mut values = HashSet::new();
 
     while let Some(message) = node.receive::<Payload>() {
+        let response = match message.body.payload {
+            Payload::Topology { mut topology } => {
+                info!("received new topology");
+
+                if let Some(new_neighbors) = topology.remove(&node.id) {
+                    neighbors = new_neighbors;
+
+                    info!("my neighbors are {neighbors:?}")
+                }
+
+                Payload::TopologyOk
+            }
+            Payload::Broadcast { message: value } => {
+                let _broadcast_span = info_span!("broadcast").entered();
+
+                info!(source = message.source, value, "received message",);
+
+                // Only broadcast new values
+                if !values.contains(&value) {
+                    values.insert(value);
+
+                    for neighbor in neighbors.iter()
+                    /*.filter(|n| **n != message.source)*/
+                    {
+                        info!(destination = neighbor, value, "broadcasting new value");
+
+                        let message = Message {
+                            source: node.id.clone(),
+                            destination: neighbor.to_string(),
+                            body: Body {
+                                message_id: None,
+                                in_reply_to: None,
+                                payload: Payload::Broadcast { message: value },
+                            },
+                        };
+
+                        node.send(&message);
+                    }
+                }
+
+                if message.body.message_id.is_some() {
+                    Payload::BroadcastOk
+                } else {
+                    continue;
+                }
+            }
+            Payload::Read => {
+                let _read_span = info_span!("read").entered();
+
+                info!(source = message.source, "received request");
+
+                info!(
+                    "responding to request with values {:?}",
+                    values.iter().copied().collect::<Vec<u32>>()
+                );
+
+                Payload::ReadOk {
+                    messages: values.iter().copied().collect(),
+                }
+            }
+            _ => continue,
+        };
+
         let reply = Message {
             source: node.id.clone(),
-            destination: message.source,
+            destination: message.source.clone(),
             body: Body {
-                message_id: node.new_message_id(),
-                in_reply_to: Some(message.body.message_id),
-                payload: match message.body.payload {
-                    Payload::Topology { mut topology } => {
-                        info!("received new topology");
-
-                        if let Some(new_neighbors) = topology.remove(&node.id) {
-                            neighbors = new_neighbors;
-
-                            info!("my neighbors are {neighbors:?}")
-                        }
-
-                        Payload::TopologyOk
-                    }
-                    Payload::Broadcast { message: value } => {
-                        info!("received broadcast message {value}");
-
-                        // Only broadcast new values
-                        if !values.contains(&value) {
-                            values.insert(value);
-
-                            info!("sending message {value} to my neighbors");
-
-                            for neighbor in neighbors.iter() {
-                                let message = Message {
-                                    source: node.id.clone(),
-                                    destination: neighbor.to_string(),
-                                    body: Body {
-                                        message_id: node.new_message_id(),
-                                        in_reply_to: None,
-                                        payload: Payload::Broadcast { message: value },
-                                    },
-                                };
-
-                                node.send(&message);
-                            }
-                        }
-
-                        Payload::BroadcastOk
-                    }
-                    Payload::Read => {
-                        info!(
-                            "responding to read request with values {:?}",
-                            values.iter().copied().collect::<Vec<u32>>()
-                        );
-
-                        Payload::ReadOk {
-                            messages: values.iter().copied().collect(),
-                        }
-                    }
-                    _ => continue,
-                },
+                message_id: Some(node.new_message_id()),
+                in_reply_to: message.body.message_id,
+                payload: response,
             },
         };
 

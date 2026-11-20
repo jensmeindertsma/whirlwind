@@ -24,8 +24,8 @@ fn main() {
             source: node.id.clone(),
             destination: message.source,
             body: Body {
-                message_id: node.new_message_id(),
-                in_reply_to: Some(message.body.message_id),
+                message_id: Some(node.new_message_id()),
+                in_reply_to: message.body.message_id,
                 payload: GenerateOk {
                     id: format!("{}-{}", node.id, counter),
                 },

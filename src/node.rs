@@ -37,24 +37,24 @@ impl Node<'_> {
             .receive()
             .expect("there should be an initialization message");
 
-        debug!("received message");
+        debug!(source = message.source, "received message");
 
         let Initialization { node_id, node_ids } = message.body.payload;
 
         node.id = node_id;
         node.cluster = node_ids;
 
+        debug!(destination = message.source, "sending acknowledgement");
+
         let reply = Message {
             source: node.id.clone(),
             destination: message.source,
             body: Body {
-                message_id: counter,
-                in_reply_to: Some(message.body.message_id),
+                message_id: Some(counter),
+                in_reply_to: message.body.message_id,
                 payload: InitializationOk {},
             },
         };
-
-        debug!("sending acknowledgement");
 
         node.send(&reply);
 

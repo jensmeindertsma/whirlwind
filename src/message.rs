@@ -14,7 +14,7 @@ pub struct Message<Payload> {
 #[derive(Deserialize, Serialize)]
 pub struct Body<Payload> {
     #[serde(rename = "msg_id")]
-    pub message_id: u32,
+    pub message_id: Option<u32>,
 
     pub in_reply_to: Option<u32>,
 
